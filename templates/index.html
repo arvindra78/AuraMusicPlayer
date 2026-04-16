@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png" />
+    <title>Aura Music Player 3.2 | Arvindra Rajput</title>
+    <!-- Fonts: SF Pro–like system stack -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2">
+</head>
+<body class="mac-style">
+    <!-- Custom title bar (Electron only) -->
+    <div class="title-bar" id="titleBar">
+        <div class="title-bar-drag">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" class="title-bar-img" alt="logo">
+            <span class="title-bar-name">Aura Music Player 3.2 | Arvindra Rajput</span>
+        </div>
+        <div class="title-bar-controls">
+            <button class="tb-btn tb-min" id="tbMin" title="Minimize">&#8211;</button>
+            <button class="tb-btn tb-max" id="tbMax" title="Maximize">&#9633;</button>
+            <button class="tb-btn tb-close" id="tbClose" title="Close">&#10005;</button>
+        </div>
+    </div>
+
+    <!-- Background element for dynamic blur -->
+    <div class="app-bg" id="appBg"></div>
+
+    <div class="app-container">
+        <!-- Sidebar: floating glass panel -->
+        <aside class="sidebar glass-panel sidebar-glass">
+            <div class="sidebar-header">
+                <div class="sidebar-title-row">
+                    <h2 class="sidebar-title">Library</h2>
+                    <button id="addFolderBtn" class="control-btn small-btn icon-btn" title="Open Local Folder"><i class="ri-folder-add-line"></i></button>
+                    <input type="file" id="folderInput" webkitdirectory directory multiple class="sr-only" />
+                </div>
+                <div class="search-box" id="searchBox">
+                    <i class="ri-search-line search-icon"></i>
+                    <input type="text" id="searchInput" placeholder="Search songs..." class="search-input">
+                </div>
+            </div>
+            <div class="playlist-container" id="playlistContainer">
+                <div class="playlist-empty" id="playlistEmpty">
+                    <i class="ri-music-2-line empty-icon"></i>
+                    <p class="empty-title">No songs yet</p>
+                    <p class="empty-subtitle">Add a folder or scan your library</p>
+                </div>
+                <ul id="playlist" class="playlist">
+                    <!-- Tracks populated via JS -->
+                </ul>
+            </div>
+            <div class="sidebar-footer">
+                <p>v3.2.0 | Developed with ❤️ by <span class="brand-name">Arvindra Rajput</span></p>
+            </div>
+        </aside>
+
+        <!-- Main Content: Apple Music–style center layout -->
+        <main class="main-content">
+            <div class="artwork-showcase" id="artworkShowcase">
+                <div class="artwork-wrapper" id="artworkWrapper">
+                    <img id="albumArtLarge" src="{{ url_for('static', filename='img/default-art.png') }}" alt="Album Art" class="album-art-img">
+                    <div class="artwork-shadow" id="artworkShadow"></div>
+                </div>
+                <div class="track-info-large glass-panel track-info-glass">
+                    <h1 id="trackTitleLarge" class="track-title-main">Aura Player</h1>
+                    <p id="trackArtistLarge" class="track-artist-main">Select a track to start</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Bottom Player Bar: dock-style floating bar -->
+    <footer class="player-bar glass-panel player-bar-dock">
+        <div class="player-left">
+            <div class="mini-artwork hidden" id="miniArtworkContainer">
+                <img id="albumArtMini" src="{{ url_for('static', filename='img/default-art.png') }}" alt="Mini Art">
+            </div>
+            <div class="mini-info hidden" id="miniInfoContainer">
+                <div id="trackTitleMini" class="marquee">No track laying</div>
+                <p id="trackArtistMini">Unknown</p>
+            </div>
+        </div>
+
+        <div class="player-center">
+            <div class="controls">
+                <button class="control-btn small-btn" id="shuffleBtn" title="Shuffle"><i class="ri-shuffle-line"></i></button>
+                <button class="control-btn" id="prevBtn" title="Previous"><i class="ri-skip-back-fill"></i></button>
+                <button class="control-btn play-btn" id="playPauseBtn" title="Play/Pause"><i class="ri-play-fill" id="playIcon"></i></button>
+                <button class="control-btn" id="nextBtn" title="Next"><i class="ri-skip-forward-fill"></i></button>
+                <button class="control-btn small-btn" id="repeatBtn" title="Repeat"><i class="ri-repeat-2-line"></i></button>
+                <button class="control-btn small-btn" id="randomizeBtn" title="Random Song (R)"><i class="ri-dice-fill"></i></button>
+            </div>
+            <div class="progress-wrapper">
+                <span class="time" id="currentTime">0:00</span>
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress" id="progress">
+                        <div class="progress-handle"></div>
+                    </div>
+                </div>
+                <span class="time" id="duration">0:00</span>
+            </div>
+        </div>
+
+        <div class="player-right volume-group">
+            <button class="control-btn small-btn icon-btn" id="muteBtn"><i class="ri-volume-up-line" id="volumeIcon"></i></button>
+            <div class="volume-slider-wrapper">
+                <div class="volume-slider" id="volumeBar">
+                    <div class="volume-progress" id="volumeProgress">
+                        <div class="volume-handle"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Electron title bar init (no-op in browser) -->
+    <script>
+        (function() {
+            if (window.electronAPI) {
+                // Show title bar
+                document.getElementById('titleBar').classList.add('visible');
+                // Wire controls
+                document.getElementById('tbMin').addEventListener('click', () => window.electronAPI.minimize());
+                document.getElementById('tbMax').addEventListener('click', () => window.electronAPI.maximize());
+                document.getElementById('tbClose').addEventListener('click', () => window.electronAPI.close());
+            }
+        })();
+    </script>
+    <!-- App JS Engine -->
+    <script src="https://unpkg.com/music-metadata-browser@2.5.11/dist/music-metadata-browser.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=4"></script>
+</body>
+</html>

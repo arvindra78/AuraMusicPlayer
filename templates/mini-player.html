@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura Mini Player</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Inter', sans-serif;
+            -webkit-app-region: drag;
+            cursor: grab;
+        }
+
+        /* The card container */
+        .mini-player {
+            position: relative;         /* stacking context for progress bar */
+            width: 100%;
+            height: 100%;
+            background: rgba(18, 16, 26, 0.75);
+            backdrop-filter: blur(40px) saturate(180%);
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-bottom-color: rgba(255, 255, 255, 0.05); /* Subtle lighting effect */
+            border-radius: 20px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            overflow: hidden;           /* clip the progress bar to the rounded corners */
+            -webkit-app-region: drag;   /* Ensure this layer is draggable */
+            cursor: grab;
+        }
+
+        /* ── Hover effect for the card itself ── */
+        .mini-player::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.0);
+            pointer-events: none;
+            transition: box-shadow 0.3s ease;
+        }
+        .mini-player:hover::after {
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+
+        /* ── Progress bar – INSIDE the card, clipped by border-radius ── */
+        .mini-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            pointer-events: none;
+            -webkit-app-region: no-drag;
+            z-index: 10;
+        }
+        .mini-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa, #f472b6);
+            width: 0%;
+            border-radius: 0 4px 4px 0;
+            transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 10px rgba(167, 139, 250, 0.6);
+        }
+
+        /* ── Album art ── */
+        .mini-art {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            object-fit: cover;
+            flex-shrink: 0;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        }
+
+        /* ── Track info ── */
+        .mini-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .mini-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            letter-spacing: 0.2px;
+        }
+        .mini-artist {
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.65);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ── Controls ── */
+        .mini-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            -webkit-app-region: no-drag;
+            margin-right: 2px;
+        }
+        .mc-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .mc-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.1);
+        }
+        .mc-btn:active {
+            transform: scale(0.95);
+        }
+
+        .mc-btn.play-btn {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #818cf8, #c084fc);
+            color: #fff;
+            font-size: 1.3rem;
+            box-shadow: 0 4px 12px rgba(129, 140, 248, 0.4);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .mc-btn.play-btn:hover {
+            background: linear-gradient(135deg, #93c5fd, #d8b4fe);
+            box-shadow: 0 6px 16px rgba(129, 140, 248, 0.6);
+            transform: scale(1.08); /* slightly smaller hover scale for the larger button */
+        }
+        .mc-btn.play-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* ── Restore button ── */
+        .restore-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            font-size: 0.85rem;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            -webkit-app-region: no-drag;
+            z-index: 20;
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+        .mini-player:hover .restore-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .restore-btn:hover { 
+            color: #fff; 
+            background: rgba(255, 255, 255, 0.15);
+        }
+    </style>
+</head>
+<body>
+    <!-- Single card – the whole thing is the drag handle; interactive children opt out -->
+    <div class="mini-player">
+        <button class="restore-btn" id="restoreBtn" title="Restore window">
+            <i class="ri-arrow-up-line"></i>
+        </button>
+
+        <img class="mini-art" id="miniArt" src="" alt="Art">
+
+        <div class="mini-info">
+            <div class="mini-title" id="miniTitle">No song playing</div>
+            <div class="mini-artist" id="miniArtist">—</div>
+        </div>
+
+        <div class="mini-controls">
+            <button class="mc-btn" id="mpPrev" title="Previous"><i class="ri-skip-back-fill"></i></button>
+            <button class="mc-btn play-btn" id="mpPlay" title="Play/Pause"><i class="ri-play-fill" id="mpPlayIcon"></i></button>
+            <button class="mc-btn" id="mpNext" title="Next"><i class="ri-skip-forward-fill"></i></button>
+            <button class="mc-btn" id="mpRandom" title="Random Song"><i class="ri-dice-fill"></i></button>
+        </div>
+
+        <!-- Progress bar lives INSIDE the card so border-radius clips it -->
+        <div class="mini-progress">
+            <div class="mini-progress-fill" id="miniProgressFill"></div>
+        </div>
+    </div>
+
+    <script>
+        const api = window.electronAPI;
+
+        let tracking = {
+            isPlaying: false,
+            currentTime: 0,
+            duration: 0,
+            lastSyncMs: performance.now()
+        };
+
+        function animateProgress() {
+            if (tracking.duration > 0) {
+                let current = tracking.currentTime;
+                if (tracking.isPlaying) {
+                    current += (performance.now() - tracking.lastSyncMs) / 1000;
+                }
+                const pct = Math.min(100, Math.max(0, (current / tracking.duration) * 100));
+                document.getElementById('miniProgressFill').style.width = pct + '%';
+            } else {
+                document.getElementById('miniProgressFill').style.width = '0%';
+            }
+            requestAnimationFrame(animateProgress);
+        }
+        // Start continuous render loop
+        requestAnimationFrame(animateProgress);
+
+        // Restore main window
+        document.getElementById('restoreBtn').addEventListener('click', () => {
+            api.restoreMain();
+        });
+
+        // Controls
+        document.getElementById('mpPlay').addEventListener('click', () => api.miniControl('play'));
+        document.getElementById('mpPrev').addEventListener('click', () => api.miniControl('prev'));
+        document.getElementById('mpNext').addEventListener('click', () => api.miniControl('next'));
+        document.getElementById('mpRandom').addEventListener('click', () => api.miniControl('random'));
+
+        // Receive state from main window
+        api.onMiniPlayerState((state) => {
+            document.getElementById('miniTitle').textContent = state.title || 'No song playing';
+            document.getElementById('miniArtist').textContent = state.artist || '—';
+            document.getElementById('miniArt').src = state.artUrl || '/static/img/default-art.png';
+            const icon = document.getElementById('mpPlayIcon');
+            icon.className = state.isPlaying ? 'ri-pause-fill' : 'ri-play-fill';
+            
+            // Sync animation offsets
+            tracking.isPlaying = state.isPlaying;
+            tracking.currentTime = state.currentTime || 0;
+            tracking.duration = state.duration || 0;
+            tracking.lastSyncMs = performance.now();
+        });
+    </script>
+</body>
+</html>

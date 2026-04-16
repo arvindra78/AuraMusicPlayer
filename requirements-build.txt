@@ -1,0 +1,3 @@
+# Install for building the production .exe:
+# pip install -r requirements.txt -r requirements-build.txt
+pyinstaller>=6.0.0

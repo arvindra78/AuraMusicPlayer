@@ -1,0 +1,66 @@
+{
+  "name": "aura-music-player",
+  "version": "3.2.0",
+  "description": "Aura Music Player 3.2 — Modern local music player desktop app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:python": "node build-python.js",
+    "build": "npm run build:python && electron-builder --win",
+    "build:electron": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.aura.musicplayer",
+    "productName": "Aura Music Player 3.2",
+    "win": {
+      "target": "nsis",
+      "icon": "static/img/logo.png",
+      "executableName": "Aura Music Player"
+    },
+    "fileAssociations": [
+      {
+        "ext": "mp3",
+        "name": "MP3 Audio",
+        "role": "Editor"
+      },
+      {
+        "ext": "flac",
+        "name": "FLAC Audio",
+        "role": "Editor"
+      },
+      {
+        "ext": "wav",
+        "name": "WAV Audio",
+        "role": "Editor"
+      },
+      {
+        "ext": "m4a",
+        "name": "M4A Audio",
+        "role": "Editor"
+      },
+      {
+        "ext": "ogg",
+        "name": "OGG Audio",
+        "role": "Editor"
+      }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "app.py",
+      "requirements.txt",
+      "static/**",
+      "templates/**"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/flask-backend.exe",
+        "to": "flask-backend.exe"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8"
+  }
+}
