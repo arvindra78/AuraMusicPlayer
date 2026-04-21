@@ -23,10 +23,20 @@ app = Flask(__name__,
 )
 
 # Configure the music directory based on user input.
-MUSIC_DIR = r"D:\LocalSongs"
-if not os.path.exists(MUSIC_DIR):
-    os.makedirs(MUSIC_DIR, exist_ok=True)
+MUSIC_DIR = ""
 
+@app.route('/api/set-directory', methods=['POST'])
+def set_directory():
+    global MUSIC_DIR
+    data = request.json
+    if data and 'directory' in data:
+        MUSIC_DIR = data['directory']
+        return jsonify({"status": "ok", "directory": MUSIC_DIR})
+    return jsonify({"status": "error"}), 400
+
+@app.route('/api/get-directory')
+def get_directory():
+    return jsonify({"directory": MUSIC_DIR})
 
 @app.route('/')
 def index():
@@ -39,6 +49,9 @@ def get_songs():
     supported_extensions = {'.mp3', '.flac', '.wav', '.m4a', '.ogg'}
     songs = []
     
+    if not MUSIC_DIR or not os.path.exists(MUSIC_DIR):
+        return jsonify(songs)
+        
     for root, dirs, files in os.walk(MUSIC_DIR):
         for file in files:
             ext = os.path.splitext(file)[1].lower()

@@ -139,7 +139,12 @@ body.fullscreen-mode .title-bar {
     letter-spacing: 0.3px;
 }
 
-.title-bar-img { height: 20px; width: auto; object-fit: contain; }
+.title-bar-img {
+    height: 28px;
+    width: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+}
 
 .title-bar-controls {
     display: flex;

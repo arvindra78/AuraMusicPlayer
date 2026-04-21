@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, screen, dialog } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -29,6 +29,27 @@ app.whenReady().then(() => {
         console.error("Failed to load miniplayer config", e);
     }
 });
+
+let appConfig = { musicDir: null };
+app.whenReady().then(() => {
+    try {
+        const configPath = path.join(app.getPath('userData'), 'app-config.json');
+        if (fs.existsSync(configPath)) {
+            appConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        }
+    } catch (e) {
+        console.error("Failed to load app config", e);
+    }
+});
+
+function saveAppConfig() {
+    try {
+        const configPath = path.join(app.getPath('userData'), 'app-config.json');
+        fs.writeFileSync(configPath, JSON.stringify(appConfig));
+    } catch (e) {
+        console.error("Failed to save app config", e);
+    }
+}
 
 // Dev vs production: packaged app from electron-builder
 const isDev = !app.isPackaged;
@@ -253,7 +274,7 @@ function createMiniPlayer() {
         skipTaskbar: true,
         roundedCorners: true,
         show: false,
-        icon: path.join(__dirname, 'static', 'img', 'logo.png'),
+        icon: path.join(__dirname, 'static', 'img', 'logo-icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -326,7 +347,7 @@ function createWindow() {
         vibrancy: 'under-window',    // for macOS
         backgroundMaterial: 'acrylic', // for Windows 11
         show: false,            // Show only after page loads
-        icon: path.join(__dirname, 'static', 'img', 'logo.png'),
+        icon: path.join(__dirname, 'static', 'img', 'logo-icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -379,6 +400,26 @@ ipcMain.handle('get-initial-file', () => {
     const file = pendingOpenFilePath;
     pendingOpenFilePath = null;
     return file;
+});
+
+ipcMain.handle('get-config', () => {
+    return appConfig;
+});
+
+ipcMain.handle('save-config', (_, newConfig) => {
+    appConfig = { ...appConfig, ...newConfig };
+    saveAppConfig();
+    return appConfig;
+});
+
+ipcMain.handle('select-folder', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory']
+    });
+    if (!result.canceled && result.filePaths.length > 0) {
+        return result.filePaths[0];
+    }
+    return null;
 });
 
 ipcMain.on('window-minimize', () => mainWindow?.minimize());

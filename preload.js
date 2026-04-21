@@ -21,6 +21,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     getInitialFile: () => ipcRenderer.invoke('get-initial-file'),
     onOpenFile: (cb) => ipcRenderer.on('open-file', (_, filePath) => cb(filePath)),
+    getConfig: () => ipcRenderer.invoke('get-config'),
+    saveConfig: (config) => ipcRenderer.invoke('save-config', config),
+    selectFolder: () => ipcRenderer.invoke('select-folder'),
+    dirname: (filePath) => {
+        const path = require('path');
+        return path.dirname(filePath);
+    },
 
     // ── Fullscreen events ────────────────────────────────────────────────────
     onFullscreenChange: (cb) => ipcRenderer.on('fullscreen-change', (_, isFS) => cb(isFS)),

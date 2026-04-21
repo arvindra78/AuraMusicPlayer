@@ -1,7 +1,7 @@
 {
   "name": "aura-music-player",
-  "version": "3.2.0",
-  "description": "Aura Music Player 3.2 — Modern local music player desktop app",
+  "version": "3.2.1",
+  "description": "Aura Music Player 3.2.1 — Modern local music player desktop app",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -11,10 +11,10 @@
   },
   "build": {
     "appId": "com.aura.musicplayer",
-    "productName": "Aura Music Player 3.2",
+    "productName": "Aura Music Player 3.2.1",
     "win": {
       "target": "nsis",
-      "icon": "static/img/logo.png",
+      "icon": "static/img/logo-icon.png",
       "executableName": "Aura Music Player"
     },
     "fileAssociations": [

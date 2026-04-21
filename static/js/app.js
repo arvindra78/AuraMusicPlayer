@@ -1,4 +1,4 @@
-// Aura Music Player 3.2 - app.js
+// Aura Music Player 3.2.1 - app.js
 // Using global musicMetadata from unpkg
 
 // State
@@ -83,25 +83,41 @@ function pushMiniPlayerState() {
 // Initialization
 async function init() {
     loadSettings();
-    await fetchSongs();
-    setupEventListeners();
-    setupOpenFileHandler();
     
-    // Check for initial file
+    let initialFile = null;
     if (window.electronAPI && window.electronAPI.getInitialFile) {
-        const initialFile = await window.electronAPI.getInitialFile();
-        if (initialFile) {
-            handleExternalFile(initialFile);
+        initialFile = await window.electronAPI.getInitialFile();
+    }
+    
+    if (initialFile) {
+        await handleExternalFile(initialFile);
+    } else {
+        if (window.electronAPI && window.electronAPI.getConfig) {
+            let config = await window.electronAPI.getConfig();
+            if (!config.musicDir) {
+                const selectedDir = await window.electronAPI.selectFolder();
+                if (selectedDir) {
+                    config = await window.electronAPI.saveConfig({ musicDir: selectedDir });
+                }
+            }
+            if (config.musicDir) {
+                await setMusicDirectory(config.musicDir);
+            }
+        }
+        await fetchSongs();
+        if (songs.length > 0 && currentSongIndex !== -1) {
+            loadSong(currentSongIndex, false);
         }
     }
+    
+    setupEventListeners();
+    setupOpenFileHandler();
 
     // ── Mini Player IPC ──
     if (window.electronAPI) {
-        // Main window was minimized — mini player needs current state
         if (window.electronAPI.onRequestMiniState) {
             window.electronAPI.onRequestMiniState(() => pushMiniPlayerState());
         }
-        // Mini player sent a control command to main window
         if (window.electronAPI.onMiniControl) {
             window.electronAPI.onMiniControl((action) => {
                 if (action === 'play')   togglePlay();
@@ -111,22 +127,52 @@ async function init() {
             });
         }
     }
-    
-    if (songs.length > 0 && currentSongIndex !== -1) {
-        loadSong(currentSongIndex, false);
+}
+
+async function setMusicDirectory(dir) {
+    try {
+        await fetch('/api/set-directory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ directory: dir })
+        });
+    } catch (e) {
+        console.error('Failed to set directory', e);
     }
 }
 
-function handleExternalFile(filePath) {
+async function handleExternalFile(filePath) {
     if (!filePath) return;
     const ext = filePath.split('.').pop().toLowerCase();
     if (!['mp3', 'flac', 'wav', 'm4a', 'ogg'].includes(ext)) return;
-    const playUrl = `/api/serve-file?path=${encodeURIComponent(filePath)}`;
-    const filename = filePath.split(/[/\\]/).pop();
-    const newSong = { url: playUrl, filename, path: filePath };
-    songs = [newSong, ...songs];
-    renderPlaylist(songs);
-    loadSong(0);
+    
+    if (window.electronAPI && window.electronAPI.dirname) {
+        const dir = window.electronAPI.dirname(filePath);
+        await setMusicDirectory(dir);
+        if (window.electronAPI.saveConfig) {
+            await window.electronAPI.saveConfig({ musicDir: dir });
+        }
+        await fetchSongs();
+        
+        const filename = filePath.split(/[/\\]/).pop();
+        const index = songs.findIndex(s => s.filename === filename);
+        if (index !== -1) {
+            loadSong(index);
+        } else {
+            const playUrl = `/api/serve-file?path=${encodeURIComponent(filePath)}`;
+            const newSong = { url: playUrl, filename, path: filePath };
+            songs = [newSong, ...songs];
+            renderPlaylist(songs);
+            loadSong(0);
+        }
+    } else {
+        const playUrl = `/api/serve-file?path=${encodeURIComponent(filePath)}`;
+        const filename = filePath.split(/[/\\]/).pop();
+        const newSong = { url: playUrl, filename, path: filePath };
+        songs = [newSong, ...songs];
+        renderPlaylist(songs);
+        loadSong(0);
+    }
 }
 
 function setupOpenFileHandler() {
