@@ -47,4 +47,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onMiniPlayerState: (cb) => ipcRenderer.on('mini-player-state', (_, state) => cb(state)),
     // Mini player requests main window restore
     restoreMain: () => ipcRenderer.send('restore-main'),
+
+    // ── Native Media Synchronization ─────────────────────────────────────────
+    updateMediaState: (state) => ipcRenderer.send('update-media-state', state),
+    notifyTrackChange: (metadata) => ipcRenderer.send('notify-track-change', metadata),
 });

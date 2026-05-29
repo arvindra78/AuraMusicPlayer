@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, screen, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, screen, dialog, Tray, Menu, Notification, globalShortcut, nativeImage } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -10,6 +10,8 @@ let miniPlayerBounds = null; // Store mini player position
 let flaskProcess = null;
 let pendingOpenFilePath = null;
 let FLASK_PORT = 5000;
+let tray = null;
+let currentPlaybackState = { isPlaying: false, title: 'No track playing', artist: 'Unknown' };
 
 // Fix Electron cache errors: use temp dir (always writable) + disable GPU shader cache
 const os = require('os');
@@ -18,36 +20,30 @@ try { fs.mkdirSync(cacheDir, { recursive: true }); } catch (_) {}
 app.commandLine.appendSwitch('disk-cache-dir', cacheDir);
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 
-// Load miniplayer bounds
-app.whenReady().then(() => {
-    try {
-        const configPath = path.join(app.getPath('userData'), 'miniplayer-config.json');
-        if (fs.existsSync(configPath)) {
-            miniPlayerBounds = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        }
-    } catch (e) {
-        console.error("Failed to load miniplayer config", e);
-    }
-});
+// miniplayer bounds are loaded inside the single app.whenReady() block below
 
 let appConfig = { musicDir: null };
-app.whenReady().then(() => {
+
+// Load app config synchronously at startup so it is available
+// immediately when the renderer process requests it via IPC.
+function loadAppConfig() {
     try {
         const configPath = path.join(app.getPath('userData'), 'app-config.json');
         if (fs.existsSync(configPath)) {
             appConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            console.log('[Config] Loaded musicDir:', appConfig.musicDir);
         }
     } catch (e) {
-        console.error("Failed to load app config", e);
+        console.error('Failed to load app config', e);
     }
-});
+}
 
 function saveAppConfig() {
     try {
         const configPath = path.join(app.getPath('userData'), 'app-config.json');
         fs.writeFileSync(configPath, JSON.stringify(appConfig));
     } catch (e) {
-        console.error("Failed to save app config", e);
+        console.error('Failed to save app config', e);
     }
 }
 
@@ -226,13 +222,10 @@ if (!gotLock) {
 } else {
     app.on('second-instance', (_, commandLine) => {
         if (mainWindow) mainWindow.focus();
-        let fileArg = null;
-        const quoted = commandLine.match(/"([^"]+\.(mp3|flac|wav|m4a|ogg))"/i);
-        if (quoted) fileArg = quoted[1];
-        else {
-            const parts = commandLine.split(/\s+/);
-            fileArg = parts.find(p => /\.(mp3|flac|wav|m4a|ogg)$/i.test(p));
-        }
+        // commandLine is an argv array — search elements directly (not a string)
+        const fileArg = commandLine.find(
+            p => typeof p === 'string' && /\.(mp3|flac|wav|m4a|ogg)$/i.test(p)
+        );
         if (fileArg && fs.existsSync(fileArg)) handleOpenFile(fileArg);
     });
 }
@@ -334,6 +327,101 @@ function destroyMiniPlayer() {
 
 // ── Create Main Window ────────────────────────────────────────────────────────
 
+function setupTray() {
+    const iconPath = path.join(__dirname, 'static', 'img', 'logo-icon.png');
+    const icon = nativeImage.createFromPath(iconPath);
+    tray = new Tray(icon);
+    tray.setToolTip('Aura Music Player');
+
+    const updateTrayMenu = () => {
+        const contextMenu = Menu.buildFromTemplate([
+            { label: `${currentPlaybackState.title} - ${currentPlaybackState.artist}`, enabled: false },
+            { type: 'separator' },
+            { 
+                label: currentPlaybackState.isPlaying ? 'Pause' : 'Play', 
+                click: () => mainWindow?.webContents.send('mini-control', 'play') 
+            },
+            { label: 'Next Track', click: () => mainWindow?.webContents.send('mini-control', 'next') },
+            { label: 'Previous Track', click: () => mainWindow?.webContents.send('mini-control', 'prev') },
+            { type: 'separator' },
+            { label: 'Open Aura', click: () => {
+                mainWindow?.show();
+                mainWindow?.focus();
+            }},
+            { label: 'Quit', click: () => app.quit() }
+        ]);
+        tray.setContextMenu(contextMenu);
+    };
+
+    updateTrayMenu();
+    tray.on('double-click', () => {
+        mainWindow?.show();
+        mainWindow?.focus();
+    });
+
+    // Make it accessible for updates
+    tray.updateMenu = updateTrayMenu;
+}
+
+function updateThumbarButtons(isPlaying) {
+    if (!mainWindow) return;
+
+    // Use app icon as fallback for controls if specific ones aren't available
+    const iconPath = path.join(__dirname, 'static', 'img', 'logo-icon.png');
+    const buttonIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+
+    const buttons = [
+        {
+            tooltip: 'Previous',
+            icon: buttonIcon, // Ideally use a real "prev" icon here
+            click: () => mainWindow.webContents.send('mini-control', 'prev')
+        },
+        {
+            tooltip: isPlaying ? 'Pause' : 'Play',
+            icon: buttonIcon, // Ideally use real "play/pause" icons here
+            click: () => mainWindow.webContents.send('mini-control', 'play')
+        },
+        {
+            tooltip: 'Next',
+            icon: buttonIcon, // Ideally use a real "next" icon here
+            click: () => mainWindow.webContents.send('mini-control', 'next')
+        }
+    ];
+
+    mainWindow.setThumbarButtons(buttons);
+}
+
+function registerGlobalShortcuts() {
+    globalShortcut.register('MediaPlayPause', () => {
+        mainWindow?.webContents.send('mini-control', 'play');
+    });
+    globalShortcut.register('MediaNextTrack', () => {
+        mainWindow?.webContents.send('mini-control', 'next');
+    });
+    globalShortcut.register('MediaPreviousTrack', () => {
+        mainWindow?.webContents.send('mini-control', 'prev');
+    });
+    globalShortcut.register('MediaStop', () => {
+        mainWindow?.webContents.send('mini-control', 'stop');
+    });
+}
+
+function showTrackNotification(title, artist, artUrl) {
+    if (Notification.isSupported()) {
+        const notification = new Notification({
+            title: title || 'Now Playing',
+            body: artist || 'Unknown Artist',
+            icon: artUrl ? nativeImage.createFromPath(artUrl) : path.join(__dirname, 'static', 'img', 'logo-icon.png'),
+            silent: true // Usually prefer silent for music updates
+        });
+        notification.show();
+        notification.on('click', () => {
+            mainWindow?.show();
+            mainWindow?.focus();
+        });
+    }
+}
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1280,
@@ -362,6 +450,7 @@ function createWindow() {
     // Show window gracefully once DOM is ready
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
+        updateThumbarButtons(currentPlaybackState.isPlaying);
     });
 
     // Open external links in browser
@@ -413,9 +502,15 @@ ipcMain.handle('save-config', (_, newConfig) => {
 });
 
 ipcMain.handle('select-folder', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
+    // defaultPath: use the previously saved directory so the dialog
+    // opens there instead of defaulting to Downloads every time.
+    const dialogOptions = {
         properties: ['openDirectory']
-    });
+    };
+    if (appConfig.musicDir && fs.existsSync(appConfig.musicDir)) {
+        dialogOptions.defaultPath = appConfig.musicDir;
+    }
+    const result = await dialog.showOpenDialog(mainWindow, dialogOptions);
     if (!result.canceled && result.filePaths.length > 0) {
         return result.filePaths[0];
     }
@@ -460,6 +555,34 @@ ipcMain.on('restore-main', () => {
     destroyMiniPlayer();
 });
 
+// ── Native Media Synchronization ──
+ipcMain.on('update-media-state', (event, state) => {
+    // state: { isPlaying, title, artist, progress, duration }
+    currentPlaybackState = { ...currentPlaybackState, ...state };
+    
+    // Update Tray Menu
+    if (tray && tray.updateMenu) tray.updateMenu();
+    
+    // Update Taskbar Progress
+    if (mainWindow) {
+        if (state.progress !== undefined) {
+            if (state.progress === -1) {
+                mainWindow.setProgressBar(-1);
+            } else {
+                mainWindow.setProgressBar(state.progress / 100);
+            }
+        }
+        
+        // Update Thumbar if playing state changed
+        updateThumbarButtons(state.isPlaying);
+    }
+});
+
+ipcMain.on('notify-track-change', (event, metadata) => {
+    // metadata: { title, artist, artUrl }
+    showTrackNotification(metadata.title, metadata.artist, metadata.artUrl);
+});
+
 // ── App Lifecycle ───────────────────────────────────────────────────────────
 
 app.on('open-file', (e, filePath) => {
@@ -468,6 +591,19 @@ app.on('open-file', (e, filePath) => {
 });
 
 app.whenReady().then(async () => {
+    // Load persisted config now (userData path is available after app is ready)
+    loadAppConfig();
+
+    // Also load miniplayer bounds here (previously it had its own whenReady block)
+    try {
+        const configPath = path.join(app.getPath('userData'), 'miniplayer-config.json');
+        if (fs.existsSync(configPath)) {
+            miniPlayerBounds = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        }
+    } catch (e) {
+        console.error('Failed to load miniplayer config', e);
+    }
+
     FLASK_PORT = await new Promise((resolve) => {
         const srv = require('net').createServer();
         srv.listen(0, '127.0.0.1', () => {
@@ -482,6 +618,9 @@ app.whenReady().then(async () => {
     if (fileArg && fs.existsSync(fileArg)) pendingOpenFilePath = path.resolve(fileArg);
 
     startFlask();
+
+    setupTray();
+    registerGlobalShortcuts();
 
     try {
         await waitForFlask();
@@ -504,4 +643,5 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
     stopFlask();
+    globalShortcut.unregisterAll();
 });

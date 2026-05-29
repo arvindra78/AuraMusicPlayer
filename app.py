@@ -62,7 +62,8 @@ def get_songs():
                 rel_path = rel_path.replace("\\", "/")
                 songs.append({
                     "url": f"/music/{rel_path}",
-                    "filename": file
+                    "filename": file,
+                    "path": full_path  # Absolute path for art-by-path API
                 })
                 
     return jsonify(songs)

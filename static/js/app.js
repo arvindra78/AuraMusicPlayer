@@ -75,8 +75,92 @@ function getMiniPlayerState() {
 
 // Push state to mini player window (called whenever playback state changes)
 function pushMiniPlayerState() {
+    const state = getMiniPlayerState();
     if (window.electronAPI && window.electronAPI.sendMiniPlayerState) {
-        window.electronAPI.sendMiniPlayerState(getMiniPlayerState());
+        window.electronAPI.sendMiniPlayerState(state);
+    }
+    
+    // Sync with Native Windows integration (Main Process)
+    if (window.electronAPI && window.electronAPI.updateMediaState) {
+        window.electronAPI.updateMediaState({
+            isPlaying: state.isPlaying,
+            title: state.title,
+            artist: state.artist,
+            progress: state.progress,
+            duration: state.duration,
+            currentTime: state.currentTime
+        });
+    }
+
+    // Update Browser Media Session API
+    updateMediaSession(state);
+}
+
+function updateMediaSession(state) {
+    if (!('mediaSession' in navigator)) return;
+
+    // Update metadata
+    navigator.mediaSession.metadata = new MediaMetadata({
+        title: state.title,
+        artist: state.artist,
+        album: 'Aura Music Library',
+        artwork: [
+            { src: state.artUrl || '/static/img/logo-icon.png', sizes: '512x512', type: 'image/png' }
+        ]
+    });
+
+    // Update position state
+    if (state.duration > 0) {
+        try {
+            navigator.mediaSession.setPositionState({
+                duration: state.duration,
+                playbackRate: audio.playbackRate,
+                position: state.currentTime
+            });
+        } catch (e) {
+            console.warn('[MediaSession] setPositionState failed:', e);
+        }
+    }
+
+    // Update playback state
+    navigator.mediaSession.playbackState = state.isPlaying ? 'playing' : 'paused';
+}
+
+function setupMediaSessionHandlers() {
+    if (!('mediaSession' in navigator)) return;
+
+    const actions = [
+        ['play', () => togglePlay()],
+        ['pause', () => pause()],
+        ['previoustrack', () => prevSong()],
+        ['nexttrack', () => nextSong()],
+        ['seekbackward', (details) => {
+            const skipTime = details.seekOffset || 10;
+            audio.currentTime = Math.max(audio.currentTime - skipTime, 0);
+        }],
+        ['seekforward', (details) => {
+            const skipTime = details.seekOffset || 10;
+            audio.currentTime = Math.min(audio.currentTime + skipTime, audio.duration);
+        }],
+        ['seekto', (details) => {
+            if (details.fastSeek && 'fastSeek' in audio) {
+                audio.fastSeek(details.seekTime);
+                return;
+            }
+            audio.currentTime = details.seekTime;
+        }],
+        ['stop', () => {
+            pause();
+            audio.currentTime = 0;
+        }]
+    ];
+
+    for (const [action, handler] of actions) {
+        try {
+            navigator.mediaSession.setActionHandler(action, handler);
+        } catch (error) {
+            console.warn(`[MediaSession] action "${action}" not supported.`);
+        }
     }
 }
 
@@ -112,6 +196,7 @@ async function init() {
     
     setupEventListeners();
     setupOpenFileHandler();
+    setupMediaSessionHandlers();
 
     // ── Mini Player IPC ──
     if (window.electronAPI) {
@@ -124,6 +209,13 @@ async function init() {
                 if (action === 'next')   nextSong();
                 if (action === 'prev')   prevSong();
                 if (action === 'random') randomizeSong();
+                if (action === 'stop') {
+                    pause();
+                    audio.currentTime = 0;
+                    if (window.electronAPI.updateMediaState) {
+                        window.electronAPI.updateMediaState({ progress: -1, isPlaying: false });
+                    }
+                }
             });
         }
     }
@@ -268,7 +360,12 @@ async function loadSong(index, autoPlay = true) {
     saveSettings();
     
     const song = songs[currentSongIndex];
+
+    // Pause any ongoing playback before switching source
+    audio.pause();
+    isPlaying = false;
     audio.src = song.url;
+    audio.load(); // Force the element to load the new source
     
     // Reset UI
     resetUI();
@@ -279,23 +376,47 @@ async function loadSong(index, autoPlay = true) {
     checkMarquee();
     
     if (autoPlay) {
-        play();
+        // Wait for the audio to be ready before playing
+        await play();
     }
     
     // Fetch and Parse Metadata asynchronously
     await fetchMetadata(song);
+
+    // Notify Main Process for Toast Notification
+    if (window.electronAPI && window.electronAPI.notifyTrackChange) {
+        const title = elements.trackTitleLarge.textContent;
+        const artist = elements.trackArtistLarge.textContent;
+        // Make art URL absolute for Main process notification
+        let artUrl = currentArtUrl;
+        if (artUrl && artUrl.startsWith('/')) {
+            artUrl = `${window.location.origin}${artUrl}`;
+        }
+        window.electronAPI.notifyTrackChange({ title, artist, artUrl });
+    }
 }
 
-function play() {
-    audio.play();
-    isPlaying = true;
-    elements.playIcon.className = 'ri-pause-fill';
-    elements.artworkWrapper.classList.add('playing');
-    
-    // Show bottom bar mini info
-    elements.miniArtworkContainer.classList.remove('hidden');
-    elements.miniInfoContainer.classList.remove('hidden');
-    pushMiniPlayerState();
+async function play() {
+    try {
+        await audio.play();
+        isPlaying = true;
+        elements.playIcon.className = 'ri-pause-fill';
+        elements.artworkWrapper.classList.add('playing');
+        
+        // Show bottom bar mini info
+        elements.miniArtworkContainer.classList.remove('hidden');
+        elements.miniInfoContainer.classList.remove('hidden');
+        pushMiniPlayerState();
+    } catch (err) {
+        // Playback was rejected (e.g. AbortError when src changes mid-play, or policy error)
+        // Only treat non-abort errors as real failures
+        if (err.name !== 'AbortError') {
+            console.warn('[Audio] play() rejected:', err.name, err.message);
+            isPlaying = false;
+            elements.playIcon.className = 'ri-play-fill';
+            elements.artworkWrapper.classList.remove('playing');
+        }
+    }
 }
 
 function pause() {
@@ -311,7 +432,11 @@ function togglePlay() {
         if (songs.length > 0) loadSong(0);
         return;
     }
-    isPlaying ? pause() : play();
+    if (isPlaying) {
+        pause();
+    } else {
+        play(); // async — no need to await here
+    }
 }
 
 function nextSong() {
@@ -651,6 +776,11 @@ function resetUI() {
     elements.progress.style.width = '0%';
     elements.currentTimeLabel.textContent = '0:00';
     elements.durationLabel.textContent = '0:00';
+    
+    // Reset Taskbar Progress
+    if (window.electronAPI && window.electronAPI.updateMediaState) {
+        window.electronAPI.updateMediaState({ progress: 0, isPlaying: false });
+    }
 }
 
 function updatePlaylistHighlight() {
@@ -704,6 +834,15 @@ function setupEventListeners() {
     
     audio.addEventListener('loadedmetadata', () => {
         elements.durationLabel.textContent = formatTime(audio.duration);
+    });
+
+    // Reset playback state if media fails to load
+    audio.addEventListener('error', (e) => {
+        console.error('[Audio] Media error:', audio.error?.code, audio.error?.message);
+        isPlaying = false;
+        elements.playIcon.className = 'ri-play-fill';
+        elements.artworkWrapper.classList.remove('playing');
+        pushMiniPlayerState();
     });
     
     audio.addEventListener('ended', nextSong);
@@ -794,10 +933,27 @@ function setupEventListeners() {
     });
     
     // Local Folder Support
-    elements.addFolderBtn.addEventListener('click', () => {
+    elements.addFolderBtn.addEventListener('click', async () => {
+        // ── Electron: use native directory picker so the choice is persisted ──
+        if (window.electronAPI && window.electronAPI.selectFolder) {
+            const selectedDir = await window.electronAPI.selectFolder();
+            if (!selectedDir) return; // user cancelled
+            // Save to persistent config so it survives restarts
+            await window.electronAPI.saveConfig({ musicDir: selectedDir });
+            // Tell Flask to serve from the new directory
+            await setMusicDirectory(selectedDir);
+            // Reload the playlist from the new directory
+            await fetchSongs();
+            if (songs.length > 0) {
+                loadSong(0, false);
+            }
+            return;
+        }
+        // ── Browser fallback: use HTML file input ──
         elements.folderInput.click();
     });
-    
+
+    // Browser-only fallback: file input picks individual files (no path saved)
     elements.folderInput.addEventListener('change', async (e) => {
         const files = Array.from(e.target.files);
         const audioFiles = files.filter(file => {
@@ -818,22 +974,16 @@ function setupEventListeners() {
                 path: path || undefined
             };
         });
-        
+
         originalOrder = [...songs];
         renderPlaylist(songs);
-        
+
         if (songs.length > 0) {
             loadSong(0, false);
         }
     });
     
-    // Media Session
-    if ('mediaSession' in navigator) {
-        navigator.mediaSession.setActionHandler('play', play);
-        navigator.mediaSession.setActionHandler('pause', pause);
-        navigator.mediaSession.setActionHandler('previoustrack', prevSong);
-        navigator.mediaSession.setActionHandler('nexttrack', nextSong);
-    }
+    // Media Session (Legacy) - Handlers moved to setupMediaSessionHandlers()
 }
 
 function updateVolumeUI(vol) {
