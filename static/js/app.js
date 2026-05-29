@@ -1,4 +1,4 @@
-// Aura Music Player 3.3 - app.js
+// Aura Music Player 3.3.1 - app.js
 // Using global musicMetadata from unpkg
 
 // State
