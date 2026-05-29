@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png" />
-    <title>Aura Music Player 3.3.1 | Arvindra Rajput</title>
+    <title>Aura Music Player 3.3.2 | Arvindra Rajput</title>
 
     <!-- Fonts: SF Pro–like system stack -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -18,7 +18,7 @@
     <div class="title-bar" id="titleBar">
         <div class="title-bar-drag">
             <img src="{{ url_for('static', filename='img/logo.png') }}" class="title-bar-img" alt="logo">
-            <span class="title-bar-name">Aura Music Player 3.3.1 | Arvindra Rajput</span>
+            <span class="title-bar-name">Aura Music Player 3.3.2 | Arvindra Rajput</span>
             </div>
 
         <div class="title-bar-controls">
@@ -30,6 +30,22 @@
 
     <!-- Background element for dynamic blur -->
     <div class="app-bg" id="appBg"></div>
+
+    <!-- Aura Hologram Layer -->
+    <div id="hologramContainer" class="hologram-container hidden">
+        <canvas id="hologramCanvas"></canvas>
+        <div class="hologram-overlay">
+            <div class="hologram-controls">
+                <button class="holo-btn" id="holoMinimalBtn" title="Toggle Minimal Mode"><i class="ri-aspect-ratio-line"></i></button>
+                <button class="holo-btn" id="holoCloseBtn" title="Exit Hologram (Esc)"><i class="ri-close-line"></i></button>
+            </div>
+            <div class="hologram-metadata">
+                <h1 id="hologramTitle">Track Name</h1>
+                <p id="hologramArtist">Artist Name</p>
+                <p id="hologramAlbum">Album Name</p>
+            </div>
+        </div>
+    </div>
 
     <div class="app-container">
         <!-- Sidebar: floating glass panel -->
@@ -56,7 +72,7 @@
                 </ul>
             </div>
             <div class="sidebar-footer">
-                <p>v3.3.1 | Developed with ❤️ by <span class="brand-name">Arvindra Rajput</span></p>
+                <p>v3.3.2 | Developed with ❤️ by <span class="brand-name">Arvindra Rajput</span></p>
             </div>
         </aside>
 
@@ -82,13 +98,14 @@
                 <img id="albumArtMini" src="{{ url_for('static', filename='img/default-art.png') }}" alt="Mini Art">
             </div>
             <div class="mini-info hidden" id="miniInfoContainer">
-                <div id="trackTitleMini" class="marquee">No track laying</div>
+                <div id="trackTitleMini" class="marquee">No track playing</div>
                 <p id="trackArtistMini">Unknown</p>
             </div>
         </div>
 
         <div class="player-center">
             <div class="controls">
+                <button class="control-btn small-btn" id="hologramBtn" title="Hologram Mode (F11)"><i class="ri-rhythm-line"></i></button>
                 <button class="control-btn small-btn" id="shuffleBtn" title="Shuffle"><i class="ri-shuffle-line"></i></button>
                 <button class="control-btn" id="prevBtn" title="Previous"><i class="ri-skip-back-fill"></i></button>
                 <button class="control-btn play-btn" id="playPauseBtn" title="Play/Pause"><i class="ri-play-fill" id="playIcon"></i></button>
@@ -119,21 +136,25 @@
         </div>
     </footer>
 
-    <!-- Electron title bar init (no-op in browser) -->
+    <!-- Electron title bar init -->
     <script>
         (function() {
             if (window.electronAPI) {
-                // Show title bar
                 document.getElementById('titleBar').classList.add('visible');
-                // Wire controls
                 document.getElementById('tbMin').addEventListener('click', () => window.electronAPI.minimize());
                 document.getElementById('tbMax').addEventListener('click', () => window.electronAPI.maximize());
                 document.getElementById('tbClose').addEventListener('click', () => window.electronAPI.close());
             }
         })();
     </script>
-    <!-- App JS Engine -->
+    
+    <!-- Dependencies -->
     <script src="https://unpkg.com/music-metadata-browser@2.5.11/dist/music-metadata-browser.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    
+    <!-- App Engine -->
+    <script src="{{ url_for('static', filename='js/AudioEngine.js') }}?v=1"></script>
+    <script src="{{ url_for('static', filename='js/HologramEngine.js') }}?v=1"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}?v=4"></script>
 </body>
 </html>

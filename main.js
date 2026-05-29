@@ -612,6 +612,7 @@ app.whenReady().then(async () => {
     startFlask();
 
     setupTray();
+    setupAppMenu();
     registerGlobalShortcuts();
 
     try {
@@ -627,6 +628,61 @@ app.whenReady().then(async () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
 });
+
+function setupAppMenu() {
+    const template = [
+        {
+            label: 'View',
+            submenu: [
+                {
+                    label: 'Aura Hologram Mode',
+                    accelerator: 'F11',
+                    click: () => {
+                        mainWindow?.webContents.send('mini-control', 'hologram');
+                    }
+                },
+                { type: 'separator' },
+                { role: 'reload' },
+                { role: 'forceReload' },
+                { role: 'toggleDevTools' },
+                { type: 'separator' },
+                { role: 'resetZoom' },
+                { role: 'zoomIn' },
+                { role: 'zoomOut' },
+                { type: 'separator' },
+                { role: 'togglefullscreen' }
+            ]
+        },
+        {
+            label: 'Window',
+            submenu: [
+                { role: 'minimize' },
+                { role: 'zoom' },
+                { role: 'close' }
+            ]
+        }
+    ];
+
+    if (process.platform === 'darwin') {
+        template.unshift({
+            label: app.name,
+            submenu: [
+                { role: 'about' },
+                { type: 'separator' },
+                { role: 'services' },
+                { type: 'separator' },
+                { role: 'hide' },
+                { role: 'hideOthers' },
+                { role: 'unhide' },
+                { type: 'separator' },
+                { role: 'quit' }
+            ]
+        });
+    }
+
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
+}
 
 app.on('window-all-closed', () => {
     stopFlask();

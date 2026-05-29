@@ -443,8 +443,8 @@ body.fullscreen-mode .title-bar {
 }
 
 .artwork-wrapper {
-    width: min(320px, 65vw);
-    height: min(320px, 65vw);
+    width: min(270px, 56vw, 48vh);
+    height: min(270px, 56vw, 48vh);
     position: relative;
     border-radius: var(--radius-xl);
     box-shadow:
@@ -911,6 +911,139 @@ body.light-bg .volume-slider:hover .volume-progress {
     color: transparent;
 }
 
+/* ─── Hologram Mode ──────────────────────────────────────────────────────── */
+.hologram-container {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s var(--ease-out);
+    display: flex;
+    flex-direction: column;
+}
+
+.hologram-container:not(.hidden) {
+    opacity: 1;
+    pointer-events: all;
+}
+
+#hologramCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.hologram-overlay {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 0 100px 0;
+    pointer-events: none;
+    background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.5) 100%);
+}
+
+.hologram-controls {
+    position: absolute;
+    top: 40px;
+    right: 40px;
+    display: flex;
+    gap: 15px;
+    pointer-events: all;
+}
+
+.holo-btn {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.holo-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.1) translateY(-2px);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.hologram-metadata {
+    text-align: center;
+    color: white;
+    text-shadow: 0 0 30px rgba(0,0,0,0.8), 0 0 15px var(--accent-glow);
+    animation: hologramMetaFloat 3s ease-in-out infinite alternate;
+}
+
+@keyframes hologramMetaFloat {
+    from { opacity: 0.8; transform: translateY(0); }
+    to { opacity: 1; transform: translateY(-10px); }
+}
+
+#hologramTitle {
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+}
+
+#hologramArtist {
+    font-size: 1.4rem;
+    opacity: 0.9;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+
+#hologramAlbum {
+    font-size: 1rem;
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* UI Transitions */
+body.hologram-active .app-container {
+    opacity: 0;
+    transform: scale(0.92);
+    pointer-events: none;
+    transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+}
+
+body.hologram-active .title-bar,
+body.fullscreen-mode .title-bar {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+body.hologram-active .player-bar {
+    transform: translateY(150%) scale(0.8);
+    opacity: 0;
+    transition: all 0.6s var(--ease-out);
+}
+
+/* Minimal Mode */
+body.hologram-minimal .hologram-metadata {
+    display: none;
+}
+body.hologram-minimal .hologram-overlay {
+    background: none;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -918,8 +1051,8 @@ body.light-bg .volume-slider:hover .volume-progress {
 @media (max-width: 1024px) {
     :root { --sidebar-width: 260px; }
     .artwork-wrapper {
-        width: min(280px, 58vw);
-        height: min(280px, 58vw);
+        width: min(240px, 52vw, 42vh);
+        height: min(240px, 52vw, 42vh);
     }
     .controls { gap: 6px; }
     .small-btn { font-size: 1rem; width: 32px; height: 32px; }
@@ -943,8 +1076,8 @@ body.light-bg .volume-slider:hover .volume-progress {
     }
     .main-content { padding: 0 0 var(--spacing-md); }
     .artwork-wrapper {
-        width: min(240px, 55vw);
-        height: min(240px, 55vw);
+        width: min(200px, 50vw, 34vh);
+        height: min(200px, 50vw, 34vh);
     }
     .artwork-showcase { gap: var(--spacing-lg); }
     .player-bar {
@@ -965,8 +1098,8 @@ body.light-bg .volume-slider:hover .volume-progress {
     .app-container { padding: var(--spacing-sm) var(--spacing-sm) 0; }
     .sidebar { height: 240px; }
     .artwork-wrapper {
-        width: min(200px, 75vw);
-        height: min(200px, 75vw);
+        width: min(170px, 68vw, 30vh);
+        height: min(170px, 68vw, 30vh);
     }
     .track-title-main { font-size: 1.1rem; }
     .controls { gap: 4px; }

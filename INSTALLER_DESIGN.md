@@ -2,7 +2,7 @@
 
 ## 1. Visual Identity & Branding
 *   **App Name:** Aura Music Player
-*   **Version:** 3.3.1
+*   **Version:** 3.3.2
 *   **Tagline:** "Listen. Feel. Flow."
 *   **Primary Theme:** Modern Dark (Obsidian & Deep Purple)
 *   **Accent Gradient:** `#7C8AFF` (Blue) → `#A78BFA` (Purple) → `#F472B6` (Pink)
@@ -10,7 +10,7 @@
 ## 2. Screen-by-Screen Flow
 
 ### Screen 1: Welcome (The Introduction)
-*   **Header:** Aura Logo (Left), "Aura Music Player v3.3.1" (Right)
+*   **Header:** Aura Logo (Left), "Aura Music Player v3.3.2" (Right)
 *   **Center:** High-resolution branding image with the tagline "Listen. Feel. Flow."
 *   **Description:** "Welcome to the future of local music playback. Aura provides a high-fidelity, polished experience for your entire music library."
 *   **Actions:** [Next] (Install), [Cancel]
