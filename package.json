@@ -1,7 +1,7 @@
 {
   "name": "aura-music-player",
-  "version": "3.2.1",
-  "description": "Aura Music Player 3.2.1 — Modern local music player desktop app",
+  "version": "3.3",
+  "description": "Aura Music Player 3.3 — Modern local music player desktop app",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

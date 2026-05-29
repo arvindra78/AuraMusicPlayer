@@ -1,4 +1,4 @@
-// Aura Music Player 3.2.1 - app.js
+// Aura Music Player 3.3 - app.js
 // Using global musicMetadata from unpkg
 
 // State
@@ -99,23 +99,40 @@ function pushMiniPlayerState() {
 function updateMediaSession(state) {
     if (!('mediaSession' in navigator)) return;
 
+    // Windows SMTC (System Media Transport Controls) is very strict about artwork URLs.
+    // blob: URLs are NOT supported as they are scoped to the renderer.
+    // We must ensure the artUrl is an absolute http(s) URL or a data: URI.
+    let artworkUrl = state.artUrl || '';
+    if (artworkUrl.startsWith('blob:')) {
+        // Fallback to the default icon if it's a blob, 
+        // or we could potentially convert to dataURL here if needed.
+        artworkUrl = `${window.location.origin}/static/img/logo-icon.png`;
+    } else if (artworkUrl && artworkUrl.startsWith('/')) {
+        artworkUrl = `${window.location.origin}${artworkUrl}`;
+    }
+
     // Update metadata
-    navigator.mediaSession.metadata = new MediaMetadata({
-        title: state.title,
-        artist: state.artist,
-        album: 'Aura Music Library',
-        artwork: [
-            { src: state.artUrl || '/static/img/logo-icon.png', sizes: '512x512', type: 'image/png' }
-        ]
-    });
+    try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: state.title || 'Unknown Title',
+            artist: state.artist || 'Unknown Artist',
+            album: 'Aura Music Library',
+            artwork: [
+                { src: artworkUrl || `${window.location.origin}/static/img/logo-icon.png`, sizes: '512x512', type: 'image/png' }
+            ]
+        });
+        console.log('[MediaSession] Metadata updated:', state.title);
+    } catch (e) {
+        console.error('[MediaSession] Metadata update failed:', e);
+    }
 
     // Update position state
-    if (state.duration > 0) {
+    if (state.duration > 0 && isFinite(state.duration) && isFinite(state.currentTime)) {
         try {
             navigator.mediaSession.setPositionState({
                 duration: state.duration,
-                playbackRate: audio.playbackRate,
-                position: state.currentTime
+                playbackRate: audio.playbackRate || 1.0,
+                position: Math.max(0, Math.min(state.currentTime, state.duration))
             });
         } catch (e) {
             console.warn('[MediaSession] setPositionState failed:', e);
@@ -670,6 +687,9 @@ function updateMetadataUI(title, artist, pictures) {
         const blob = new Blob([picture.data], { type: picture.format });
         const url = URL.createObjectURL(blob);
         updateArtUI(url);
+    } else {
+        // Even if no pictures, we need to push state to update title/artist in Media Session
+        pushMiniPlayerState();
     }
 }
 

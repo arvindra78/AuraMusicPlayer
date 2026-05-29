@@ -392,18 +392,10 @@ function updateThumbarButtons(isPlaying) {
 }
 
 function registerGlobalShortcuts() {
-    globalShortcut.register('MediaPlayPause', () => {
-        mainWindow?.webContents.send('mini-control', 'play');
-    });
-    globalShortcut.register('MediaNextTrack', () => {
-        mainWindow?.webContents.send('mini-control', 'next');
-    });
-    globalShortcut.register('MediaPreviousTrack', () => {
-        mainWindow?.webContents.send('mini-control', 'prev');
-    });
-    globalShortcut.register('MediaStop', () => {
-        mainWindow?.webContents.send('mini-control', 'stop');
-    });
+    // We intentionally do NOT register MediaPlayPause, MediaNextTrack, etc. here.
+    // The browser Media Session API (in app.js) handles these keys natively,
+    // which also enables the Windows System Media Transport Controls (SMTC) flyout.
+    // Registering them as global shortcuts here would hijack them and hide the flyout.
 }
 
 function showTrackNotification(title, artist, artUrl) {
