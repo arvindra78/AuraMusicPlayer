@@ -65,31 +65,41 @@
             <div class="playlist-container" id="playlistContainer">
                 <!-- Navigation Sections -->
                 <nav class="sidebar-nav">
-                    <div class="sidebar-nav-section">
-                        <h3 class="sidebar-section-title">Library</h3>
-                        <div class="nav-item active" id="navAllSongs">
-                            <i class="ri-music-2-line"></i>
-                            <span>All Songs</span>
-                        </div>
-                        <div class="nav-item" id="navFavorites">
-                            <i class="ri-heart-line"></i>
-                            <span>Favorites</span>
-                        </div>
-                        <div class="nav-item" id="navRecent">
-                            <i class="ri-history-line"></i>
-                            <span>Recently Played</span>
+                    <div class="sidebar-nav-section" id="librarySection">
+                        <h3 class="sidebar-section-title collapsible">
+                            <span>Library</span>
+                            <i class="ri-arrow-down-s-line collapse-icon"></i>
+                        </h3>
+                        <div class="sidebar-section-content">
+                            <div class="nav-item active" id="navAllSongs">
+                                <i class="ri-music-2-line"></i>
+                                <span>All Songs</span>
+                            </div>
+                            <div class="nav-item" id="navFavorites">
+                                <i class="ri-heart-line"></i>
+                                <span>Favorites</span>
+                            </div>
+                            <div class="nav-item" id="navRecent">
+                                <i class="ri-history-line"></i>
+                                <span>Recently Played</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="sidebar-nav-section">
-                        <div class="sidebar-section-title">
+                    <div class="sidebar-nav-section" id="playlistSection">
+                        <div class="sidebar-section-title collapsible">
                             <span>Playlists</span>
-                            <button id="addPlaylistBtn" class="add-playlist-btn" title="New Playlist">
-                                <i class="ri-add-line"></i>
-                            </button>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button id="addPlaylistBtn" class="add-playlist-btn" title="New Playlist">
+                                    <i class="ri-add-line"></i>
+                                </button>
+                                <i class="ri-arrow-down-s-line collapse-icon"></i>
+                            </div>
                         </div>
-                        <div id="userPlaylists">
-                            <!-- User playlists populated via JS -->
+                        <div class="sidebar-section-content">
+                            <div id="userPlaylists">
+                                <!-- User playlists populated via JS -->
+                            </div>
                         </div>
                     </div>
                 </nav>
@@ -163,13 +173,6 @@
             <div class="mini-info hidden" id="miniInfoContainer">
                 <div id="trackTitleMini" class="marquee">No track playing</div>
                 <p id="trackArtistMini">Unknown</p>
-            </div>
-            <div class="library-toggle-group">
-                <span class="toggle-label">Library</span>
-                <label class="switch">
-                    <input type="checkbox" id="sidebarToggle" checked>
-                    <span class="slider-round"></span>
-                </label>
             </div>
         </div>
 

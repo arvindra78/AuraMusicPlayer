@@ -257,6 +257,7 @@ async function init() {
     setupOpenFileHandler();
     setupMediaSessionHandlers();
     setupPlaylistHandlers();
+    setupCollapsibleSections();
 
     // ── Mini Player IPC ──
     if (window.electronAPI) {
@@ -797,20 +798,6 @@ function setupEventListeners() {
     });
     elements.repeatBtn.addEventListener('click', () => { repeatMode = (repeatMode + 1) % 3; updateRepeatUI(); saveSettings(); });
     
-    const sidebarToggle = document.getElementById('sidebarToggle');
-    const appContainer = document.querySelector('.app-container');
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener('change', () => {
-            appContainer.classList.toggle('sidebar-hidden', !sidebarToggle.checked);
-            localStorage.setItem('aura-sidebar-visible', sidebarToggle.checked);
-        });
-        
-        // Load initial state
-        const sidebarVisible = localStorage.getItem('aura-sidebar-visible') !== 'false';
-        sidebarToggle.checked = sidebarVisible;
-        appContainer.classList.toggle('sidebar-hidden', !sidebarVisible);
-    }
-
     elements.addFolderBtn.addEventListener('click', async () => {
         if (window.electronAPI?.selectFolder) {
             const dir = await window.electronAPI.selectFolder();
@@ -852,6 +839,20 @@ function setupPlaylistHandlers() {
     });
     elements.deleteCancelBtn.addEventListener('click', hideDeleteModal);
     document.addEventListener('click', () => { elements.contextMenu.style.display = 'none'; });
+}
+
+function setupCollapsibleSections() {
+    const sections = document.querySelectorAll('.sidebar-nav-section');
+    sections.forEach(section => {
+        const title = section.querySelector('.sidebar-section-title.collapsible');
+        if (title) {
+            title.addEventListener('click', (e) => {
+                // Don't toggle if clicking the "Add Playlist" button itself
+                if (e.target.closest('.add-playlist-btn')) return;
+                section.classList.toggle('collapsed');
+            });
+        }
+    });
 }
 
 function showPlaylistModal(title, initialValue, onSave) {
