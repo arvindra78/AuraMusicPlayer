@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onOpenFile: (cb) => ipcRenderer.on('open-file', (_, filePath) => cb(filePath)),
     getConfig: () => ipcRenderer.invoke('get-config'),
     saveConfig: (config) => ipcRenderer.invoke('save-config', config),
+    getPlaylists: () => ipcRenderer.invoke('get-playlists'),
+    savePlaylists: (data) => ipcRenderer.invoke('save-playlists', data),
     selectFolder: () => ipcRenderer.invoke('select-folder'),
     dirname: (filePath) => {
         const path = require('path');

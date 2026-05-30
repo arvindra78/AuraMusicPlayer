@@ -23,6 +23,7 @@ app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 // miniplayer bounds are loaded inside the single app.whenReady() block below
 
 let appConfig = { musicDir: null };
+let playlistsData = { playlists: [], favorites: [], recentlyPlayed: [] };
 
 // Load app config synchronously at startup so it is available
 // immediately when the renderer process requests it via IPC.
@@ -32,6 +33,12 @@ function loadAppConfig() {
         if (fs.existsSync(configPath)) {
             appConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
             console.log('[Config] Loaded musicDir:', appConfig.musicDir);
+        }
+
+        const playlistsPath = path.join(app.getPath('userData'), 'playlists.json');
+        if (fs.existsSync(playlistsPath)) {
+            playlistsData = JSON.parse(fs.readFileSync(playlistsPath, 'utf8'));
+            console.log('[Config] Loaded playlists:', playlistsData.playlists.length);
         }
     } catch (e) {
         console.error('Failed to load app config', e);
@@ -44,6 +51,15 @@ function saveAppConfig() {
         fs.writeFileSync(configPath, JSON.stringify(appConfig));
     } catch (e) {
         console.error('Failed to save app config', e);
+    }
+}
+
+function savePlaylists() {
+    try {
+        const playlistsPath = path.join(app.getPath('userData'), 'playlists.json');
+        fs.writeFileSync(playlistsPath, JSON.stringify(playlistsData));
+    } catch (e) {
+        console.error('Failed to save playlists', e);
     }
 }
 
@@ -491,6 +507,16 @@ ipcMain.handle('save-config', (_, newConfig) => {
     appConfig = { ...appConfig, ...newConfig };
     saveAppConfig();
     return appConfig;
+});
+
+ipcMain.handle('get-playlists', () => {
+    return playlistsData;
+});
+
+ipcMain.handle('save-playlists', (_, newData) => {
+    playlistsData = { ...playlistsData, ...newData };
+    savePlaylists();
+    return playlistsData;
 });
 
 ipcMain.handle('select-folder', async () => {

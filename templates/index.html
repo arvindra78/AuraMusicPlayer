@@ -52,7 +52,7 @@
         <aside class="sidebar glass-panel sidebar-glass">
             <div class="sidebar-header">
                 <div class="sidebar-title-row">
-                    <h2 class="sidebar-title">Library</h2>
+                    <h2 class="sidebar-title">Aura Player</h2>
                     <button id="addFolderBtn" class="control-btn small-btn icon-btn" title="Open Local Folder"><i class="ri-folder-add-line"></i></button>
                     <input type="file" id="folderInput" webkitdirectory directory multiple class="sr-only" />
                 </div>
@@ -61,7 +61,41 @@
                     <input type="text" id="searchInput" placeholder="Search songs..." class="search-input">
                 </div>
             </div>
+
             <div class="playlist-container" id="playlistContainer">
+                <!-- Navigation Sections -->
+                <nav class="sidebar-nav">
+                    <div class="sidebar-nav-section">
+                        <h3 class="sidebar-section-title">Library</h3>
+                        <div class="nav-item active" id="navAllSongs">
+                            <i class="ri-music-2-line"></i>
+                            <span>All Songs</span>
+                        </div>
+                        <div class="nav-item" id="navFavorites">
+                            <i class="ri-heart-line"></i>
+                            <span>Favorites</span>
+                        </div>
+                        <div class="nav-item" id="navRecent">
+                            <i class="ri-history-line"></i>
+                            <span>Recently Played</span>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-nav-section">
+                        <div class="sidebar-section-title">
+                            <span>Playlists</span>
+                            <button id="addPlaylistBtn" class="add-playlist-btn" title="New Playlist">
+                                <i class="ri-add-line"></i>
+                            </button>
+                        </div>
+                        <div id="userPlaylists">
+                            <!-- User playlists populated via JS -->
+                        </div>
+                    </div>
+                </nav>
+
+                <div class="sidebar-separator" style="height: 1px; background: var(--glass-border); margin: var(--spacing-md) var(--spacing-lg);"></div>
+
                 <div class="playlist-empty" id="playlistEmpty">
                     <i class="ri-music-2-line empty-icon"></i>
                     <p class="empty-title">No songs yet</p>
@@ -71,6 +105,7 @@
                     <!-- Tracks populated via JS -->
                 </ul>
             </div>
+            
             <div class="sidebar-footer">
                 <p>v3.3.2 | Developed with ❤️ by <span class="brand-name">Arvindra Rajput</span></p>
             </div>
@@ -91,6 +126,34 @@
         </main>
     </div>
 
+    <!-- Modals -->
+    <div id="playlistModal" class="modal-overlay">
+        <div class="modal">
+            <h2 id="modalTitle" class="modal-title">New Playlist</h2>
+            <input type="text" id="playlistNameInput" class="modal-input" placeholder="Enter playlist name...">
+            <div class="modal-footer">
+                <button id="modalCancelBtn" class="modal-btn btn-secondary">Cancel</button>
+                <button id="modalSaveBtn" class="modal-btn btn-primary">Create Playlist</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteConfirmModal" class="modal-overlay">
+        <div class="modal">
+            <h2 class="modal-title">Delete Playlist</h2>
+            <p id="deleteConfirmText" style="margin-bottom: var(--spacing-xl); color: var(--text-secondary);">Are you sure you want to delete this playlist? This action cannot be undone.</p>
+            <div class="modal-footer">
+                <button id="deleteCancelBtn" class="modal-btn btn-secondary">Cancel</button>
+                <button id="deleteConfirmBtn" class="modal-btn btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu">
+        <!-- Dynamically populated -->
+    </div>
+
     <!-- Bottom Player Bar: dock-style floating bar -->
     <footer class="player-bar glass-panel player-bar-dock">
         <div class="player-left">
@@ -100,6 +163,13 @@
             <div class="mini-info hidden" id="miniInfoContainer">
                 <div id="trackTitleMini" class="marquee">No track playing</div>
                 <p id="trackArtistMini">Unknown</p>
+            </div>
+            <div class="library-toggle-group">
+                <span class="toggle-label">Library</span>
+                <label class="switch">
+                    <input type="checkbox" id="sidebarToggle" checked>
+                    <span class="slider-round"></span>
+                </label>
             </div>
         </div>
 
