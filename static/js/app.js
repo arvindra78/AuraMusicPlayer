@@ -13,7 +13,8 @@ let repeatMode = 0; // 0 = none, 1 = all, 2 = one
 let playlists = [];
 let favorites = [];
 let recentlyPlayed = [];
-let currentView = 'all'; // 'all', 'favorites', 'recent', or {playlist_id}
+let playbackQueue = []; // Smart Queue: songs selected by user to play next
+let currentView = 'all'; // 'all', 'favorites', 'recent', 'queue', or {playlist_id}
 
 const audio = new Audio();
 const audioEngine = new AudioEngine(audio);
@@ -77,6 +78,7 @@ const elements = {
     navAllSongs: document.getElementById('navAllSongs'),
     navFavorites: document.getElementById('navFavorites'),
     navRecent: document.getElementById('navRecent'),
+    navQueue: document.getElementById('navQueue'),
     userPlaylists: document.getElementById('userPlaylists'),
     addPlaylistBtn: document.getElementById('addPlaylistBtn'),
 
@@ -325,6 +327,9 @@ function switchView(view) {
     } else if (view === 'recent') {
         songs = recentlyPlayed.map(url => allSongs.find(s => s.url === url)).filter(Boolean);
         elements.navRecent.classList.add('active');
+    } else if (view === 'queue') {
+        songs = [...playbackQueue];
+        elements.navQueue.classList.add('active');
     } else {
         const pl = playlists.find(p => p.id === view);
         if (pl) {
@@ -339,7 +344,7 @@ function switchView(view) {
     }
 
     originalOrder = [...songs];
-    if (isShuffle) {
+    if (isShuffle && view !== 'queue') {
         songs.sort(() => Math.random() - 0.5);
     }
     renderPlaylist(songs);
@@ -531,6 +536,9 @@ function addSongToPlaylist(songUrl, playlistId) {
             pl.songs.push(songUrl);
             savePlaylists();
             if (currentView === playlistId) switchView(playlistId);
+            showToast(`Added to ${pl.name}`);
+        } else {
+            showToast('Song already in playlist');
         }
     }
 }
@@ -542,6 +550,28 @@ function removeSongFromPlaylist(songUrl, playlistId) {
         savePlaylists();
         if (currentView === playlistId) switchView(playlistId);
     }
+}
+
+function addToQueue(song, playNext = false) {
+    if (playNext) {
+        playbackQueue.unshift(song);
+        showToast(`Playing "${song.filename.replace(/\.[^/.]+$/, "")}" next`);
+    } else {
+        playbackQueue.push(song);
+        showToast(`Added to queue`);
+    }
+    if (currentView === 'queue') switchView('queue');
+}
+
+function removeFromQueue(index) {
+    playbackQueue.splice(index, 1);
+    if (currentView === 'queue') switchView('queue');
+}
+
+function clearQueue() {
+    playbackQueue = [];
+    if (currentView === 'queue') switchView('queue');
+    showToast('Queue cleared');
 }
 
 async function play() {
@@ -580,8 +610,23 @@ function togglePlay() {
 }
 
 function nextSong() {
-    if (songs.length === 0) return;
+    if (songs.length === 0 && playbackQueue.length === 0) return;
     if (repeatMode === 2) { audio.currentTime = 0; play(); return; }
+
+    // Smart Queue Logic: if there are items in the user's queue, play them first
+    if (playbackQueue.length > 0) {
+        const nextFromQueue = playbackQueue.shift();
+        const idxInList = songs.findIndex(s => s.url === nextFromQueue.url);
+        if (idxInList !== -1) {
+            loadSong(idxInList);
+        } else {
+            songs.splice(currentSongIndex + 1, 0, nextFromQueue);
+            loadSong(currentSongIndex + 1);
+        }
+        if (currentView === 'queue') renderPlaylist(playbackQueue);
+        return;
+    }
+
     let nextIndex = (currentSongIndex + 1) % songs.length;
     if (nextIndex === 0 && repeatMode === 0) { loadSong(nextIndex, false); return; }
     loadSong(nextIndex);
@@ -826,6 +871,7 @@ function setupPlaylistHandlers() {
     elements.navAllSongs.addEventListener('click', () => switchView('all'));
     elements.navFavorites.addEventListener('click', () => switchView('favorites'));
     elements.navRecent.addEventListener('click', () => switchView('recent'));
+    elements.navQueue.addEventListener('click', () => switchView('queue'));
     elements.addPlaylistBtn.addEventListener('click', () => {
         showPlaylistModal('New Playlist', '', (name) => createPlaylist(name));
     });
@@ -878,6 +924,9 @@ function showSongContextMenu(e, song, index) {
     const menu = elements.contextMenu;
     menu.innerHTML = '';
     const items = [
+        { label: 'Play Next', icon: 'ri-play-list-add-line', action: () => addToQueue(song, true) },
+        { label: 'Add to Queue', icon: 'ri-list-unordered', action: () => addToQueue(song, false) },
+        { separator: true },
         { label: 'Add to Favorites', icon: 'ri-heart-line', action: () => toggleFavorite(song.url) },
         { separator: true },
         { label: 'Add to Playlist', icon: 'ri-playlist-add-line', submenu: playlists.map(pl => ({
@@ -893,10 +942,18 @@ function showSongContextMenu(e, song, index) {
             }}
         ])}
     ];
-    if (currentView !== 'all' && currentView !== 'favorites' && currentView !== 'recent') {
+
+    if (currentView !== 'all' && currentView !== 'favorites' && currentView !== 'recent' && currentView !== 'queue') {
         items.push({ separator: true });
         items.push({ label: 'Remove from Playlist', icon: 'ri-delete-bin-line', action: () => removeSongFromPlaylist(song.url, currentView) });
     }
+
+    if (currentView === 'queue') {
+        items.push({ separator: true });
+        items.push({ label: 'Remove from Queue', icon: 'ri-close-line', action: () => removeFromQueue(index) });
+        items.push({ label: 'Clear All Queue', icon: 'ri-delete-bin-line', action: () => clearQueue() });
+    }
+
     renderMenu(menu, items);
     menu.style.display = 'block';
     const { clientX: x, clientY: y } = e;
@@ -935,7 +992,9 @@ function renderMenu(container, items) {
         div.className = 'menu-item';
         div.innerHTML = `<span><i class="${item.icon}"></i>${item.label}</span>${item.submenu ? '<i class="ri-arrow-right-s-line submenu-arrow"></i>' : ''}`;
         if (item.action) div.addEventListener('click', (e) => { e.stopPropagation(); item.action(); elements.contextMenu.style.display = 'none'; });
-        if (item.submenu) div.addEventListener('mouseenter', (e) => showSubmenu(e, item.submenu, div));
+        if (item.submenu) {
+            div.addEventListener('mouseenter', (e) => showSubmenu(e, item.submenu, div));
+        }
         container.appendChild(div);
     });
 }
@@ -949,11 +1008,39 @@ function showSubmenu(e, submenuItems, parentItem) {
     renderMenu(sub, submenuItems);
     document.body.appendChild(sub);
     const rect = parentItem.getBoundingClientRect();
-    sub.style.left = (rect.right + 5) + 'px';
+    sub.style.left = rect.right + 'px'; // Remove gap
     sub.style.top = rect.top + 'px';
-    const hideSub = (ev) => { if (!sub.contains(ev.relatedTarget) && !parentItem.contains(ev.relatedTarget)) sub.remove(); };
-    parentItem.addEventListener('mouseleave', hideSub);
-    sub.addEventListener('mouseleave', hideSub);
+    
+    let hideTimeout;
+    const startHide = () => {
+        hideTimeout = setTimeout(() => sub.remove(), 200); // 200ms grace period
+    };
+    const cancelHide = () => clearTimeout(hideTimeout);
+    
+    parentItem.addEventListener('mouseleave', (ev) => {
+        if (!sub.contains(ev.relatedTarget)) startHide();
+    });
+    sub.addEventListener('mouseenter', cancelHide);
+    sub.addEventListener('mouseleave', (ev) => {
+        if (!parentItem.contains(ev.relatedTarget)) startHide();
+    });
+}
+
+function showToast(message) {
+    let toast = document.getElementById('toastNotification');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toastNotification';
+        toast.className = 'toast-notification';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('visible');
+    
+    if (toast.timeout) clearTimeout(toast.timeout);
+    toast.timeout = setTimeout(() => {
+        toast.classList.remove('visible');
+    }, 3000);
 }
 
 function setupOpenFileHandler() {

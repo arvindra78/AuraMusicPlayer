@@ -1410,6 +1410,27 @@ body.hologram-minimal .hologram-overlay {
     opacity: 1;
 }
 
-.playlist-item-more:hover {
-    color: var(--text-primary);
+/* Toast */
+.toast-notification {
+    position: fixed;
+    bottom: calc(var(--player-height) + 20px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 10px 24px;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    z-index: 12000;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s var(--ease-out);
+    border: 1px solid var(--glass-border);
+}
+
+.toast-notification.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
 }
