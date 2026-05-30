@@ -183,34 +183,54 @@ function setupMediaSessionHandlers() {
 
 // Initialization
 async function init() {
+    console.log('[Startup] Initializing Aura Music Player...');
     loadSettings();
     
     // Initialize Hologram Engine (Isolated Layer)
-    if (elements.hologramCanvas) {
-        hologramEngine = new HologramEngine(elements.hologramCanvas);
+    try {
+        if (elements.hologramCanvas) {
+            hologramEngine = new HologramEngine(elements.hologramCanvas);
+            console.log('[Startup] HologramEngine instantiated.');
+        }
+    } catch (e) {
+        console.error('[Startup] Failed to instantiate HologramEngine:', e);
     }
 
     let initialFile = null;
-    if (window.electronAPI && window.electronAPI.getInitialFile) {
-        initialFile = await window.electronAPI.getInitialFile();
+    try {
+        if (window.electronAPI && window.electronAPI.getInitialFile) {
+            initialFile = await window.electronAPI.getInitialFile();
+            console.log('[Startup] Checked for initial file:', initialFile);
+        }
+    } catch (e) {
+        console.error('[Startup] Failed to check for initial file:', e);
     }
     
     if (initialFile) {
         await handleExternalFile(initialFile);
     } else {
-        if (window.electronAPI && window.electronAPI.getConfig) {
-            let config = await window.electronAPI.getConfig();
-            if (!config.musicDir) {
-                const selectedDir = await window.electronAPI.selectFolder();
-                if (selectedDir) {
-                    config = await window.electronAPI.saveConfig({ musicDir: selectedDir });
+        try {
+            if (window.electronAPI && window.electronAPI.getConfig) {
+                let config = await window.electronAPI.getConfig();
+                if (!config.musicDir) {
+                    const selectedDir = await window.electronAPI.selectFolder();
+                    if (selectedDir) {
+                        config = await window.electronAPI.saveConfig({ musicDir: selectedDir });
+                    }
+                }
+                if (config.musicDir) {
+                    await setMusicDirectory(config.musicDir);
+                    console.log('[Startup] Music directory set:', config.musicDir);
                 }
             }
-            if (config.musicDir) {
-                await setMusicDirectory(config.musicDir);
-            }
+        } catch (e) {
+            console.error('[Startup] Failed to load configuration:', e);
         }
+
+        console.log('[Startup] Fetching songs...');
         await fetchSongs();
+        console.log('[Startup] Songs fetched:', songs.length);
+
         if (songs.length > 0 && currentSongIndex !== -1) {
             loadSong(currentSongIndex, false);
         }
@@ -239,9 +259,16 @@ async function init() {
             });
         }
     }
+    console.log('[Startup] Initialization complete.');
 }
 
 function toggleHologramMode() {
+    if (!hologramEngine || !hologramEngine.enabled) {
+        console.warn('[Hologram] Engine is not available or disabled.');
+        // Optionally show a toast/notification to the user
+        return;
+    }
+
     isHologramActive = !isHologramActive;
     document.body.classList.toggle('hologram-active', isHologramActive);
     document.body.classList.toggle('fullscreen-mode', isHologramActive);

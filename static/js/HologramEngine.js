@@ -9,7 +9,13 @@ class HologramEngine {
         this.canvas = canvas;
         this.active = false;
         this.minimal = false;
+        this.enabled = typeof window.THREE !== 'undefined';
         
+        if (!this.enabled) {
+            console.warn('[Hologram] Three.js not detected. Engine disabled.');
+            return;
+        }
+
         // Audio Analysis (Isolated)
         this.audioCtx = null;
         this.analyser = null;
@@ -48,6 +54,7 @@ class HologramEngine {
     }
 
     setEnvironment(name) {
+        if (!this.enabled) return;
         // Force the single simplified environment
         this.envMode = 'Aura Space';
         if (this.stars) this.stars.visible = true;
@@ -57,31 +64,37 @@ class HologramEngine {
     }
 
     async init(audioElement) {
+        if (!this.enabled) return;
         this._attachAudioObserver(audioElement);
         this._resetSpectrumBars();
         if (this.scene) return;
 
         // Setup Three.js Scene
-        this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.position.z = 5;
-        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.scene.add(this.group);
+        try {
+            this.scene = new THREE.Scene();
+            this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            this.camera.position.z = 5;
+            this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.scene.add(this.group);
 
-        this._createEnvironment();
-        this._createCyberGrid();
-        this._createParticles();
-        this._createAuraRing();
-        this._createCircularSpectrum();
-        this._createArtworkCenterpiece();
-        this._createLights();
-        window.addEventListener('resize', () => this.onResize());
+            this._createEnvironment();
+            this._createCyberGrid();
+            this._createParticles();
+            this._createAuraRing();
+            this._createCircularSpectrum();
+            this._createArtworkCenterpiece();
+            this._createLights();
+            window.addEventListener('resize', () => this.onResize());
+        } catch (e) {
+            console.error('[Hologram] Three.js scene init failed:', e);
+            this.enabled = false;
+        }
     }
 
     _attachAudioObserver(audioElement) {
-        if (!audioElement) return;
+        if (!audioElement || !this.enabled) return;
 
         try {
             // We create a SEPARATE AudioContext for visualization.
